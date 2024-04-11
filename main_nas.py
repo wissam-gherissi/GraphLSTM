@@ -22,7 +22,7 @@ ACTIVITY_KEY = 'ActivityID'
 CASE_ID_KEY = 'CaseID'
 TIMESTAMP_KEY = 'timestamp'
 
-#device = torch.device("cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
     # Read main CSV file
@@ -125,7 +125,7 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
     gat_model = GATModel(num_node_features, graph_hidden_dim, graph_embedding_dim, num_edge_features, num_layers)
     lstm_gat_model = LSTMGATModel(gat_model, input_dim, lstm_hidden_dim, len(Char_indices))
 
-    # lstm_gat_model = lstm_gat_model.to(device)
+    lstm_gat_model = lstm_gat_model.to(device)
     # Define your optimizer
     optimizer = optim.Adam(lstm_gat_model.parameters(), lr=learning_rate)
 
@@ -142,7 +142,7 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
         running_regression_loss = 0.0
         for batch_idx, data in enumerate(train_data_loaded):
             optimizer.zero_grad()  # Zero the gradients
-            #data = data.to(device)
+            data = data.to(device)
             # Forward pass
             act_output, time_output, timeR_output = lstm_gat_model(data, using_graph)
             # make_dot(act_output.mean(), params=dict(lstm_gat_model.named_parameters()))
@@ -190,7 +190,7 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
     # Iterate over the test data loader
     with torch.no_grad():
         for data in test_data_loaded:
-            #data = data.to(device)
+            data = data.to(device)
             # Forward pass
             act_output, time_output, timeR_output = lstm_gat_model(data, using_graph)
 
