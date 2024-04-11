@@ -24,6 +24,7 @@ TIMESTAMP_KEY = 'timestamp'
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
     # Read main CSV file
     df_main = pd.read_csv(f'./data/{main_eventlog}.csv')
@@ -134,7 +135,7 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
     regression_criterion = torch.nn.L1Loss()
 
     # Training loop
-    print("Training...")
+    # print("Training...")
 
     for epoch in range(num_epochs):
         lstm_gat_model.train()  # Set the model to training mode
@@ -164,15 +165,15 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
             optimizer.step()
 
             # Print statistics
-            running_classification_loss += classification_loss.item()
-            running_regression_loss += (regression_loss1.item() + regression_loss2.item())
-            if batch_idx % 100 == 99:  # Print every 100 mini-batches
-                print('[%d, %5d] classification loss: %.3f, regression loss: %.3f' %
-                      (epoch + 1, batch_idx + 1, running_classification_loss / 100, running_regression_loss / 100))
-                running_classification_loss = 0.0
-                running_regression_loss = 0.0
+            # running_classification_loss += classification_loss.item()
+            # running_regression_loss += (regression_loss1.item() + regression_loss2.item())
+            # if batch_idx % 100 == 99:  # Print every 100 mini-batches
+            #     print('[%d, %5d] classification loss: %.3f, regression loss: %.3f' %
+            #           (epoch + 1, batch_idx + 1, running_classification_loss / 100, running_regression_loss / 100))
+            #     running_classification_loss = 0.0
+            #     running_regression_loss = 0.0
 
-    print('Finished Training')
+    # print('Finished Training')
 
     # Evaluation
 
@@ -195,12 +196,12 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
             act_output, time_output, timeR_output = lstm_gat_model(data, using_graph)
 
             # Convert predictions and targets to numpy arrays
-            act_preds.extend(torch.argmax(act_output, dim=-1).numpy())
-            time_preds.extend(time_output.numpy())
-            timeR_preds.extend(timeR_output.numpy())
-            act_targets.extend(torch.argmax(data.y_act, dim=-1).numpy())
-            time_targets.extend(data.y_times[:, 0].numpy())
-            timeR_targets.extend(data.y_times[:, 1].numpy())
+            act_preds.extend(torch.argmax(act_output, dim=-1).cpu().numpy())
+            time_preds.extend(time_output.cpu().numpy())
+            timeR_preds.extend(timeR_output.cpu().numpy())
+            act_targets.extend(torch.argmax(data.y_act, dim=-1).cpu().numpy())
+            time_targets.extend(data.y_times[:, 0].cpu().numpy())
+            timeR_targets.extend(data.y_times[:, 1].cpu().numpy())
 
     # Calculate classification metrics
     accuracy = accuracy_score(act_targets, act_preds)
@@ -217,21 +218,21 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
     rmse_timeR = np.sqrt(mse_timeR)
 
     # Print the metrics
-    print("Classification Metrics:")
-    print("Accuracy:", accuracy)
-    print("Precision:", precision)
-    print("Recall:", recall)
-    print("F1-score:", f1)
-
-    print("\nRegression Metrics (Time):")
-    print("MAE:", mae_time)
-    print("MSE:", mse_time)
-    print("RMSE:", rmse_time)
-
-    print("\nRegression Metrics (TimeR):")
-    print("MAE:", mae_timeR)
-    print("MSE:", mse_timeR)
-    print("RMSE:", rmse_timeR)
+    # print("Classification Metrics:")
+    # print("Accuracy:", accuracy)
+    # print("Precision:", precision)
+    # print("Recall:", recall)
+    # print("F1-score:", f1)
+    #
+    # print("\nRegression Metrics (Time):")
+    # print("MAE:", mae_time)
+    # print("MSE:", mse_time)
+    # print("RMSE:", rmse_time)
+    #
+    # print("\nRegression Metrics (TimeR):")
+    # print("MAE:", mae_timeR)
+    # print("MSE:", mse_timeR)
+    # print("RMSE:", rmse_timeR)
 
     return accuracy
 
@@ -245,7 +246,7 @@ def houci_function_list(config_list, num_epochs):
     return res
 
 
-#Press the green button in the gutter to run the script.
+# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
     # Hyperparameters
