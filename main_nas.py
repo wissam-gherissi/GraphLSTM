@@ -247,28 +247,28 @@ def houci_function_list(config_list, num_epochs):
 
 
 # Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-
-    # Hyperparameters
-    lstm_hidden_dim = 100
-    num_epochs = 10
-    num_layers = 2
-    graph_hidden_size = 32
-    graph_embedding_size = 32
-    learning_rate = 0.005
-
-    main_eventlog = "orders_complete"
-    additional_objects = ["items_filtered", "packages_complete"]
-
-    preprocess = False
-    if preprocess:
-        preprocess_and_prepare_graphs(main_eventlog, *additional_objects)
-
-    acc = houci_function(num_epochs, num_layers, graph_hidden_size, graph_embedding_size, lstm_hidden_dim,
-                         learning_rate)
-    print(acc)
-
-    exit()
+# if __name__ == '__main__':
+#
+#     # Hyperparameters
+#     lstm_hidden_dim = 100
+#     num_epochs = 10
+#     num_layers = 2
+#     graph_hidden_size = 32
+#     graph_embedding_size = 32
+#     learning_rate = 0.005
+#
+#     main_eventlog = "orders_complete"
+#     additional_objects = ["items_filtered", "packages_complete"]
+#
+#     preprocess = False
+#     if preprocess:
+#         preprocess_and_prepare_graphs(main_eventlog, *additional_objects)
+#
+#     acc = houci_function(num_epochs, num_layers, graph_hidden_size, graph_embedding_size, lstm_hidden_dim,
+#                          learning_rate)
+#     print(acc)
+#
+#     exit()
 
 if __name__ == '__main__':
     num_layers_range = [3, 4, 5, 6, 7, 8]
@@ -289,11 +289,11 @@ if __name__ == '__main__':
                                        device='cpu')
     search_space.preprocess_no_pretraining()
 
-    hi_fi_eval = lambda encodings_lst: houci_function_list(encodings_lst, 10)
-    hi_fi_cost = 10
+    hi_fi_eval = lambda encodings_lst: houci_function_list(encodings_lst, 20)
+    hi_fi_cost = 20
 
-    lo_fi_eval = lambda encodings_lst: houci_function_list(encodings_lst, 3)
-    lo_fi_cost = 3
+    lo_fi_eval = lambda encodings_lst: houci_function_list(encodings_lst, 5)
+    lo_fi_cost = 5
 
     search_instance = SearchInstance(name='Exemple',
                                      save_filename='nas/test_search_inst.dill',
