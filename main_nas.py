@@ -99,7 +99,7 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
 
 
 def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim, lstm_hidden_dim, learning_rate):
-    main_eventlog = "orders_complete"
+    main_eventlog = "applications_enriched_sample"
 
     with open(f'./pickle_files/trainset_{main_eventlog}.pkl', 'rb') as train_file:
         training_input = pickle.load(train_file)
@@ -234,6 +234,17 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
     # print("MSE:", mse_timeR)
     # print("RMSE:", rmse_timeR)
 
+    metrics_dict = {
+        "Metric": ["Accuracy", "Precision", "Recall", "F1-score", "MAE Time", "MAE TimeR"],
+        "Value": [accuracy, precision, recall, f1, mae_time, mae_timeR]
+    }
+
+    # Create a DataFrame from the dictionary
+    metrics_df = pd.DataFrame(metrics_dict)
+
+    # Save the DataFrame to a CSV file
+    metrics_df.to_csv(f"metrics_results_{main_eventlog}.csv", index=False)
+
     return accuracy
 
 
@@ -247,28 +258,28 @@ def houci_function_list(config_list, num_epochs):
 
 
 # Press the green button in the gutter to run the script.
-# if __name__ == '__main__':
-#
-#     # Hyperparameters
-#     lstm_hidden_dim = 100
-#     num_epochs = 10
-#     num_layers = 2
-#     graph_hidden_size = 32
-#     graph_embedding_size = 32
-#     learning_rate = 0.005
-#
-#     main_eventlog = "orders_complete"
-#     additional_objects = ["items_filtered", "packages_complete"]
-#
-#     preprocess = False
-#     if preprocess:
-#         preprocess_and_prepare_graphs(main_eventlog, *additional_objects)
-#
-#     acc = houci_function(num_epochs, num_layers, graph_hidden_size, graph_embedding_size, lstm_hidden_dim,
-#                          learning_rate)
-#     print(acc)
-#
-#     exit()
+if __name__ == '__main__':
+
+    # Hyperparameters
+    lstm_hidden_dim = 100
+    num_epochs = 20
+    num_layers = 3
+    graph_hidden_size = 1024
+    graph_embedding_size = 1024
+    learning_rate = 0.0001
+
+    main_eventlog = "orders_complete"
+    additional_objects = ["items_filtered", "packages_complete"]
+
+    preprocess = False
+    if preprocess:
+        preprocess_and_prepare_graphs(main_eventlog, *additional_objects)
+
+    acc = houci_function(num_epochs, num_layers, graph_hidden_size, graph_embedding_size, lstm_hidden_dim,
+                         learning_rate)
+    print(acc)
+
+    exit()
 
 if __name__ == '__main__':
     num_layers_range = [3, 4, 5, 6, 7, 8]
