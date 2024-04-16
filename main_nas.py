@@ -100,6 +100,7 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
 
 
 def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim, lstm_hidden_dim, learning_rate):
+
     main_eventlog = "orders_complete"
 
     with open(f'./pickle_files/trainset_{main_eventlog}.pkl', 'rb') as train_file:
@@ -206,7 +207,7 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
         # Save best model
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(lstm_gat_model.state_dict(), 'best_model.pt')
+            torch.save(lstm_gat_model.state_dict(), f'best_model_{main_eventlog}.pt')
             counter = 0
         else:
             counter += 1
@@ -304,7 +305,7 @@ if __name__ == '__main__':
 
     # Hyperparameters
     lstm_hidden_dim = 100
-    num_epochs = 50
+    num_epochs = 100
     num_layers = 3
     graph_hidden_size = 1024
     graph_embedding_size = 1024
