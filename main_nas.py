@@ -10,6 +10,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from torch_geometric.loader import DataLoader
 import torch.optim as optim
+from torch.utils.data import random_split
 
 from model_func_nas import LSTMGATModel, GATModel
 from graph_helpers import get_dfg_from_df, unionize_dfg_sources, multigraph_transform, data_generator
@@ -99,7 +100,7 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
 
 
 def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim, lstm_hidden_dim, learning_rate):
-    main_eventlog = "applications_enriched_sample"
+    main_eventlog = "orders_complete"
 
     with open(f'./pickle_files/trainset_{main_eventlog}.pkl', 'rb') as train_file:
         training_input = pickle.load(train_file)
@@ -112,7 +113,15 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
     with open(f'./pickle_files/config_{main_eventlog}.pkl', 'rb') as config_file:
         Maxlen, time_target_means, Char_indices = pickle.load(config_file)
 
-    train_data_loaded = DataLoader(training_input, batch_size=32, shuffle=True)
+    # Split the training data into training and validation sets
+    total_size = len(training_input)
+    train_size = int(0.8 * total_size)
+    val_size = total_size - train_size
+    train_data, val_data = random_split(training_input, [train_size, val_size])
+
+    # Create DataLoader instances for training and validation sets
+    train_data_loaded = DataLoader(train_data, batch_size=32, shuffle=True)
+    val_data_loader = DataLoader(val_data, batch_size=32, shuffle=False)
     test_data_loaded = DataLoader(test_input, batch_size=32, shuffle=False)
 
     # Number of features
@@ -134,8 +143,13 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
     classification_criterion = torch.nn.CrossEntropyLoss()
     regression_criterion = torch.nn.L1Loss()
 
+    # Define early stopping parameters
+    patience = 5
+    best_val_loss = float('inf')
+    counter = 0
+
     # Training loop
-    # print("Training...")
+    print("Training...")
 
     for epoch in range(num_epochs):
         lstm_gat_model.train()  # Set the model to training mode
@@ -165,15 +179,43 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
             optimizer.step()
 
             # Print statistics
-            # running_classification_loss += classification_loss.item()
-            # running_regression_loss += (regression_loss1.item() + regression_loss2.item())
-            # if batch_idx % 100 == 99:  # Print every 100 mini-batches
-            #     print('[%d, %5d] classification loss: %.3f, regression loss: %.3f' %
-            #           (epoch + 1, batch_idx + 1, running_classification_loss / 100, running_regression_loss / 100))
-            #     running_classification_loss = 0.0
-            #     running_regression_loss = 0.0
+            running_classification_loss += classification_loss.item()
+            running_regression_loss += (regression_loss1.item() + regression_loss2.item())
+            if batch_idx % 100 == 99:  # Print every 100 mini-batches
+                print('[%d, %5d] classification loss: %.3f, regression loss: %.3f' %
+                      (epoch + 1, batch_idx + 1, running_classification_loss / 100, running_regression_loss / 100))
+                running_classification_loss = 0.0
+                running_regression_loss = 0.0
 
-    # print('Finished Training')
+        # Validation step
+        with torch.no_grad():
+            val_loss = 0.0
+            for data in val_data_loader:
+                data = data.to(device)
+                # Forward pass
+                act_output, time_output, timeR_output = lstm_gat_model(data, using_graph)
+                # Compute validation loss
+                classification_loss = classification_criterion(act_output, data.y_act)
+                regression_loss1 = regression_criterion(time_output, data.y_times[:, 0].unsqueeze(1))
+                regression_loss2 = regression_criterion(timeR_output, data.y_times[:, 1].unsqueeze(1))
+                val_loss += (classification_loss + regression_loss1 + regression_loss2).item()
+
+        # Average validation loss
+        val_loss /= len(val_data_loader)
+
+        # Save best model
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            torch.save(lstm_gat_model.state_dict(), 'best_model.pt')
+            counter = 0
+        else:
+            counter += 1
+            if counter >= patience:
+                print(f'Early stopping at epoch {epoch}')
+                break
+
+
+    print('Finished Training')
 
     # Evaluation
 
@@ -262,7 +304,7 @@ if __name__ == '__main__':
 
     # Hyperparameters
     lstm_hidden_dim = 100
-    num_epochs = 20
+    num_epochs = 50
     num_layers = 3
     graph_hidden_size = 1024
     graph_embedding_size = 1024
@@ -281,38 +323,38 @@ if __name__ == '__main__':
 
     exit()
 
-if __name__ == '__main__':
-    num_layers_range = [3, 4, 5, 6, 7, 8]
-    graph_hidden_size_range = [16, 32, 64, 128, 256, 512, 1024, 2048]
-    graph_embedding_size_range = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
-    lstm_hidden_dim_range = [100]
-    learning_rate_range = (np.arange(1, 10) * 1e-3).tolist() + [5e-4, 3e-2, 1e-4, 2e-4]
-    encodings = product(num_layers_range, graph_hidden_size_range,
-                        graph_embedding_size_range, lstm_hidden_dim_range,
-                        learning_rate_range)
-    encodings = torch.Tensor(list(encodings))
-    print(encodings.shape)
-
-    search_space = create_search_space(name='Exemple',
-                                       save_filename='nas/test_search_space.dill',
-                                       encodings=encodings,
-                                       encoding_to_net=None,
-                                       device='cpu')
-    search_space.preprocess_no_pretraining()
-
-    hi_fi_eval = lambda encodings_lst: houci_function_list(encodings_lst, 20)
-    hi_fi_cost = 20
-
-    lo_fi_eval = lambda encodings_lst: houci_function_list(encodings_lst, 5)
-    lo_fi_cost = 5
-
-    search_instance = SearchInstance(name='Exemple',
-                                     save_filename='nas/test_search_inst.dill',
-                                     search_space_filename='nas/test_search_space.dill',
-                                     hi_fi_eval=hi_fi_eval,
-                                     hi_fi_cost=hi_fi_cost,
-                                     lo_fi_eval=lo_fi_eval,
-                                     lo_fi_cost=lo_fi_cost,
-                                     device='cpu')
-
-    search_instance.run_search(eval_budget=int(1e6))
+# if __name__ == '__main__':
+#     num_layers_range = [3, 4, 5, 6, 7, 8]
+#     graph_hidden_size_range = [16, 32, 64, 128, 256, 512, 1024, 2048]
+#     graph_embedding_size_range = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
+#     lstm_hidden_dim_range = [100]
+#     learning_rate_range = (np.arange(1, 10) * 1e-3).tolist() + [5e-4, 3e-2, 1e-4, 2e-4]
+#     encodings = product(num_layers_range, graph_hidden_size_range,
+#                         graph_embedding_size_range, lstm_hidden_dim_range,
+#                         learning_rate_range)
+#     encodings = torch.Tensor(list(encodings))
+#     print(encodings.shape)
+#
+#     search_space = create_search_space(name='Exemple',
+#                                        save_filename='nas/test_search_space.dill',
+#                                        encodings=encodings,
+#                                        encoding_to_net=None,
+#                                        device='cpu')
+#     search_space.preprocess_no_pretraining()
+#
+#     hi_fi_eval = lambda encodings_lst: houci_function_list(encodings_lst, 20)
+#     hi_fi_cost = 20
+#
+#     lo_fi_eval = lambda encodings_lst: houci_function_list(encodings_lst, 5)
+#     lo_fi_cost = 5
+#
+#     search_instance = SearchInstance(name='Exemple',
+#                                      save_filename='nas/test_search_inst.dill',
+#                                      search_space_filename='nas/test_search_space.dill',
+#                                      hi_fi_eval=hi_fi_eval,
+#                                      hi_fi_cost=hi_fi_cost,
+#                                      lo_fi_eval=lo_fi_eval,
+#                                      lo_fi_cost=lo_fi_cost,
+#                                      device='cpu')
+#
+#     search_instance.run_search(eval_budget=int(1e6))
