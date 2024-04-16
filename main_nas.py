@@ -99,9 +99,9 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
         pickle.dump(config, config_file)
 
 
-def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim, lstm_hidden_dim, learning_rate):
+def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim, lstm_hidden_dim, learning_rate_graph, learning_rate_lstm):
 
-    main_eventlog = "orders_complete"
+    main_eventlog = "applications_enriched_sample"
 
     with open(f'./pickle_files/trainset_{main_eventlog}.pkl', 'rb') as train_file:
         training_input = pickle.load(train_file)
@@ -121,9 +121,9 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
     train_data, val_data = random_split(training_input, [train_size, val_size])
 
     # Create DataLoader instances for training and validation sets
-    train_data_loaded = DataLoader(train_data, batch_size=32, shuffle=True)
-    val_data_loader = DataLoader(val_data, batch_size=32, shuffle=False)
-    test_data_loaded = DataLoader(test_input, batch_size=32, shuffle=False)
+    train_data_loaded = DataLoader(train_data, batch_size=Maxlen, shuffle=True)
+    val_data_loader = DataLoader(val_data, batch_size=Maxlen, shuffle=False)
+    test_data_loaded = DataLoader(test_input, batch_size=Maxlen, shuffle=False)
 
     # Number of features
     num_node_features = 1
@@ -138,7 +138,8 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
 
     lstm_gat_model = lstm_gat_model.to(device)
     # Define your optimizer
-    optimizer = optim.Adam(lstm_gat_model.parameters(), lr=learning_rate)
+    optimizer_lstm = optim.Adam(lstm_gat_model.parameters(), lr=learning_rate_lstm)
+    optimizer_graph = optim.Adam(gat_model.parameters(), lr=learning_rate_graph)
 
     # Define your loss functions
     classification_criterion = torch.nn.CrossEntropyLoss()
@@ -157,7 +158,8 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
         lstm_gat_model.train()  # Set the model to training mode
         running_loss = 0.0
         for batch_idx, data in enumerate(train_data_loaded):
-            optimizer.zero_grad()  # Zero the gradients
+            optimizer_lstm.zero_grad()# Zero the gradients
+            optimizer_graph.zero_grad()# Zero the gradients
             data = data.to(device)
             # Forward pass
             act_output, time_output, timeR_output = lstm_gat_model(data, using_graph)
@@ -176,7 +178,8 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
             loss.backward()
 
             # Update weights
-            optimizer.step()
+            optimizer_lstm.step()
+            optimizer_graph.step()
 
             # Update running loss
             running_loss += loss.item()
@@ -203,7 +206,7 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
         val_losses.append(epoch_val_loss)
 
         # Print epoch statistics
-        print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {epoch_train_loss:.4f}, Val Loss: {epoch_val_loss:.4f}')
+        #print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {epoch_train_loss:.4f}, Val Loss: {epoch_val_loss:.4f}')
 
         # Save best model
         if epoch_val_loss < best_val_loss:
@@ -213,11 +216,11 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
         else:
             counter += 1
             if counter >= patience:
-                print(f'Early stopping at epoch {epoch}')
+                #print(f'Early stopping at epoch {epoch}')
                 break
 
 
-    print('Finished Training')
+    #print('Finished Training')
 
     # Evaluation
 
@@ -296,7 +299,7 @@ def houci_function_list(config_list, num_epochs):
     res = []
     for cfg in config_list:
         # num_layers, graph_hidden_size, graph_embedding_size, lstm_hidden_dim, learning_rate
-        cfg = list(map(int, cfg[:4])) + [float(cfg[-1])]
+        cfg = list(map(int, cfg[:4])) + list(map(float, cfg[-2:]))
         res.append(houci_function(num_epochs, *cfg))
     return res
 
@@ -310,7 +313,8 @@ if __name__ == '__main__':
     num_layers = 3
     graph_hidden_size = 1024
     graph_embedding_size = 1024
-    learning_rate = 0.0001
+    learning_rate_graph = 0.0001
+    learning_rate_lstm = 0.001
 
     main_eventlog = "orders_complete"
     additional_objects = ["items_filtered", "packages_complete"]
@@ -320,17 +324,18 @@ if __name__ == '__main__':
         preprocess_and_prepare_graphs(main_eventlog, *additional_objects)
 
     acc = houci_function(num_epochs, num_layers, graph_hidden_size, graph_embedding_size, lstm_hidden_dim,
-                         learning_rate)
+                         learning_rate_graph, learning_rate_lstm)
     print(acc)
 
     exit()
 
 # if __name__ == '__main__':
 #     num_layers_range = [3, 4, 5, 6, 7, 8]
-#     graph_hidden_size_range = [16, 32, 64, 128, 256, 512, 1024, 2048]
-#     graph_embedding_size_range = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
-#     lstm_hidden_dim_range = [100]
-#     learning_rate_range = (np.arange(1, 10) * 1e-3).tolist() + [5e-4, 3e-2, 1e-4, 2e-4]
+#     graph_hidden_size_range = [32, 64, 128, 256, 512, 1024, 2048]
+#     graph_embedding_size_range = [32, 64, 128, 256, 512, 1024, 2048]
+#     lstm_hidden_dim_range = [50, 100]
+#     learning_rate_graph_range = (np.arange(1, 10) * 1e-3).tolist() + [5e-4, 3e-2, 1e-4, 2e-4]
+#     learning_rate_lstm_range = (np.arange(1,10) * 1e-3).tolist()
 #     encodings = product(num_layers_range, graph_hidden_size_range,
 #                         graph_embedding_size_range, lstm_hidden_dim_range,
 #                         learning_rate_range)
