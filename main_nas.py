@@ -151,11 +151,11 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
 
     # Training loop
     print("Training...")
-
+    train_losses = []
+    val_losses = []
     for epoch in range(num_epochs):
         lstm_gat_model.train()  # Set the model to training mode
-        running_classification_loss = 0.0
-        running_regression_loss = 0.0
+        running_loss = 0.0
         for batch_idx, data in enumerate(train_data_loaded):
             optimizer.zero_grad()  # Zero the gradients
             data = data.to(device)
@@ -175,18 +175,15 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
             # Backward pass
             loss.backward()
 
-            # plot_grad_flow(lstm_gat_model.named_parameters())
             # Update weights
             optimizer.step()
 
-            # Print statistics
-            running_classification_loss += classification_loss.item()
-            running_regression_loss += (regression_loss1.item() + regression_loss2.item())
-            if batch_idx % 100 == 99:  # Print every 100 mini-batches
-                print('[%d, %5d] classification loss: %.3f, regression loss: %.3f' %
-                      (epoch + 1, batch_idx + 1, running_classification_loss / 100, running_regression_loss / 100))
-                running_classification_loss = 0.0
-                running_regression_loss = 0.0
+            # Update running loss
+            running_loss += loss.item()
+
+        # Compute average training loss for the epoch
+        epoch_train_loss = running_loss / len(train_data_loaded)
+        train_losses.append(epoch_train_loss)
 
         # Validation step
         with torch.no_grad():
@@ -201,12 +198,16 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
                 regression_loss2 = regression_criterion(timeR_output, data.y_times[:, 1].unsqueeze(1))
                 val_loss += (classification_loss + regression_loss1 + regression_loss2).item()
 
-        # Average validation loss
-        val_loss /= len(val_data_loader)
+        # Compute average validation loss for the epoch
+        epoch_val_loss = val_loss / len(val_data_loader)
+        val_losses.append(epoch_val_loss)
+
+        # Print epoch statistics
+        print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {epoch_train_loss:.4f}, Val Loss: {epoch_val_loss:.4f}')
 
         # Save best model
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        if epoch_val_loss < best_val_loss:
+            best_val_loss = epoch_val_loss
             torch.save(lstm_gat_model.state_dict(), f'best_model_{main_eventlog}.pt')
             counter = 0
         else:
