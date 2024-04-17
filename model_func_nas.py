@@ -60,21 +60,16 @@ class LSTMGATModel(torch.nn.Module):
         self.fc_time = nn.Linear(lstm_hidden_dim, 1)
         self.fc_timeR = nn.Linear(lstm_hidden_dim, 1)
 
-    def forward(self, data, using_graph):
+    def forward(self, data, model_used):
         # Pass the subgraph through the GAT model
         data_input = data.lstm_input
 
-        gat_output = self.gat_model(data, data_input.shape[0])
-        gat_output = self.bn_gnn(gat_output.permute(0, 2, 1)).permute(0, 2, 1)
-
-        #gat_output = torch.zeros_like(gat_output)
-
-        data_input = torch.zeros_like(data_input)
-
-        if using_graph:
+        if model_used == "graph":
+            gat_output = self.gat_model(data, data_input.shape[0])
+            gat_output = self.bn_gnn(gat_output.permute(0, 2, 1)).permute(0, 2, 1)
             # Concatenate GAT output with LSTM input
             lstm_input = torch.cat((data_input, gat_output), dim=-1)
-        else:
+        elif model_used == "LSTM":
             lstm_input = data_input
         # Pass the concatenated input through the shared LSTM layer
         shared_lstm_output, _ = self.shared_lstm(lstm_input)

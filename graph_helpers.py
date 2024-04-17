@@ -103,14 +103,14 @@ def data_generator(graph, X, y_act, y_times):
     nodes = X[:, :, 0]
     subgraphs = [graph.subgraph(a) for a in nodes]
     subgraph_data = []
-    for i in tqdm(range(len(subgraphs)), desc='Generating data'):
+    for i in tqdm(range(len(subgraphs)), desc='Generating graph data'):
         subgraph = subgraphs[i]
         # We eliminate no edge graphs
         if len(subgraph.edges) > 0:
             _, edge_index, edge_attr, _ = prepare_data(subgraph)
             d = Data(x=torch.from_numpy(nodes[i]).unsqueeze(1), edge_index=edge_index, edge_attr=edge_attr)
-            d.lstm_input = torch.from_numpy(X[i]).unsqueeze(0)
+            d.lstm_input = torch.from_numpy(X[i, :, 1:]).unsqueeze(0)
             d.y_act = torch.from_numpy(y_act[i]).unsqueeze(0)
             d.y_times = torch.from_numpy(y_times[i]).unsqueeze(0)
             subgraph_data.append(d)
-    return subgraph_data
+    return subgraph_data, len(edge_attr[0])

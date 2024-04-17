@@ -6,7 +6,7 @@ from tqdm import tqdm
 def preprocess_data(df):
     caseids, lines, timeseqs, timeseqs2, timeseqs3, timeseqs4, nb_itemseqs, timeseqsF = [], [], [], [], [], [], [], []
 
-    df.loc[:, 'timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601')  # Convert timestamp column to datetime
+    df.loc[:, 'timestamp'] = pd.to_datetime(df['timestamp'])  # Convert timestamp column to datetime
 
     for case_id, group in tqdm(df.groupby('CaseID'), desc='Preprocessing data'):
         caseids.append(case_id)
@@ -146,18 +146,20 @@ def prepare_lstm_input_and_targets(sequences, maxlen, char_indices, char_act, sc
         next_char_timeF = row['next_char_timeF']
 
         l = len(line)
+        pos_list = list(range(l))
+        pos = [a + 1 for a in pos_list]
         # Initialize input vectors
         x_lstm = np.zeros((maxlen, 6), dtype=np.float32)
-
+        left_pad = maxlen - l
         # Encode the sequence
         for t, char in enumerate(line):
-            x_lstm[t, 0] = char_act[char]
-
+            x_lstm[left_pad+t, 0] = char_act[char]
+        x_lstm[left_pad:, 1] = pos
         # Fill the rest with time sequence features
-        x_lstm[:l, 1] = time_seq
-        x_lstm[:l, 2] = time_seq2
-        x_lstm[:l, 3] = time_seq3
-        x_lstm[:l, 4] = time_seq4
+        x_lstm[left_pad:, 2] = time_seq
+        x_lstm[left_pad:, 3] = time_seq2
+        x_lstm[left_pad:, 4] = time_seq3
+        x_lstm[left_pad:, 5] = time_seq4
         # x_lstm[:l, 5] = nb_itemseq
 
         # Prepare target vectors
@@ -179,12 +181,12 @@ def prepare_lstm_input_and_targets(sequences, maxlen, char_indices, char_act, sc
     # scaler.fit(time_features_all)
 
     # Normalize time sequence features by dividing each feature by its mean
-    time_features_mean = np.mean(np.array([x_lstm[:, 1:4] for x_lstm in lstm_input]), axis=(0,1))
+    time_features_mean = np.mean(np.array([x_lstm[:, -4:] for x_lstm in lstm_input]), axis=(0, 1))
     # Apply scaler to time sequence features
     for x_lstm in lstm_input:
         # x_lstm[:, 1:6] = scaler.transform(x_lstm[:, 1:6])
-        x_lstm[:, 1:4] /= time_features_mean
-        x_lstm[:, 4] /= 7
+        x_lstm[:, -4:] /= time_features_mean
+        x_lstm[:, -1] /= 7
 
     time_targets_array = np.array(time_targets)
     time_target_means = np.mean(time_targets_array, axis=0)
