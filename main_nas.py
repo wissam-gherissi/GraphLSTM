@@ -28,7 +28,6 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
-
     model_used = "graph"
 
     # Read main CSV file
@@ -38,7 +37,7 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
     data_df = preprocess_data(df_main)
 
     # Split data into train and test sets
-    train_data, test_data = train_test_split(data_df, test_size=0.33)
+    train_data, test_data = train_test_split(data_df, test_size=0.33, random_state=1)
 
     train_cases = np.array(train_data['caseid'])
     df1 = df_main[df_main['CaseID'].isin(train_cases)].copy()
@@ -56,7 +55,6 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
     # Initialize the scaler
     scaler = MinMaxScaler()
 
-
     # Prepare LSTM input and targets for training data
     X_train_lstm, y_act_train, y_times_train, time_target_means = prepare_lstm_input_and_targets(
         train_sequences,
@@ -69,7 +67,7 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
                                                                               char_act, scaler)
     training_input = []
     test_input = []
-    if model_used=="LSTM":
+    if model_used == "LSTM":
         for i in range(len(X_train_lstm)):
             d = Data()
             d.lstm_input = torch.from_numpy(X_train_lstm[i]).unsqueeze(0)
@@ -84,7 +82,7 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
             test_input.append(d)
         config = [maxlen, time_target_means, char_indices]
 
-    elif model_used=="graph":
+    elif model_used == "graph":
 
         # Graph preprocessing
         print("Graph preprocessing...")
@@ -98,16 +96,14 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
 
         # Unionize DFG sources
         G_union = unionize_dfg_sources(dfg_sources, threshold=0)
-        # Transform to simple undirected graph with edge features
-        G_simple = multigraph_transform(G_union)
         # Add padding node
-        G_simple.add_node(0)
+        G_union.add_node(0)
 
         # Prepare training data
         print("Train data generation...")
-        training_input, num_edge_features = data_generator(G_simple, X_train_lstm, y_act_train, y_times_train)
+        training_input, num_edge_features = data_generator(G_union, X_train_lstm, y_act_train, y_times_train)
         print("Test data generation...")
-        test_input, _ = data_generator(G_simple, X_test_lstm, y_act_test, y_times_test)
+        test_input, _ = data_generator(G_union, X_test_lstm, y_act_test, y_times_test)
 
         config = [maxlen, time_target_means, char_indices, num_edge_features]
     # Save training and test inputs to pickle files
@@ -124,7 +120,7 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
 
 def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim, lstm_hidden_dim, learning_rate_graph,
                    learning_rate_lstm):
-    main_eventlog = "orders_complete"
+    main_eventlog = "orders-Enriched"
     model_used = "graph"
 
     with open(f'./pickle_files/trainset_{model_used}_{main_eventlog}.pkl', 'rb') as train_file:
@@ -136,16 +132,17 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
 
     # Load test input from pickle file
     with open(f'./pickle_files/config_{model_used}_{main_eventlog}.pkl', 'rb') as config_file:
-        if model_used=="graph":
+        if model_used == "graph":
             Maxlen, time_target_means, Char_indices, num_edge_features = pickle.load(config_file)
-        elif model_used=="LSTM":
+        elif model_used == "LSTM":
             Maxlen, time_target_means, Char_indices = pickle.load(config_file)
             num_edge_features = 0
     # Split the training data into training and validation sets
     total_size = len(training_input)
     train_size = int(0.8 * total_size)
     val_size = total_size - train_size
-    train_data, val_data = random_split(training_input, [train_size, val_size])
+    generator1 = torch.Generator().manual_seed(1)
+    train_data, val_data = random_split(training_input, [train_size, val_size], generator=generator1)
 
     # Create DataLoader instances for training and validation sets
     train_data_loaded = DataLoader(train_data, batch_size=64, shuffle=True)
@@ -153,7 +150,7 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
     test_data_loaded = DataLoader(test_input, batch_size=64, shuffle=False)
 
     # Number of features
-    num_node_features = 1
+    num_node_features = 2
     num_time_features = 5
 
     if model_used == "graph":
@@ -348,11 +345,10 @@ if __name__ == '__main__':
     learning_rate_graph = 0.0001
     learning_rate_lstm = 0.0001
 
-
     preprocess = True
     if preprocess:
-        main_eventlog = "orders_complete"
-        additional_objects = ["items_filtered", "packages_complete"]
+        main_eventlog = "orders-Enriched-Filtered"
+        additional_objects = ["items-Enriched-Filtered", "packages-Enriched"]
         preprocess_and_prepare_graphs(main_eventlog, *additional_objects)
 
     acc = houci_function(num_epochs, num_layers, graph_hidden_size, graph_embedding_size, lstm_hidden_dim,

@@ -6,7 +6,7 @@ from tqdm import tqdm
 def preprocess_data(df):
     caseids, lines, timeseqs, timeseqs2, timeseqs3, timeseqs4, nb_itemseqs, timeseqsF = [], [], [], [], [], [], [], []
 
-    df.loc[:, 'timestamp'] = pd.to_datetime(df['timestamp'])  # Convert timestamp column to datetime
+    df.loc[:, 'timestamp'] = pd.to_datetime(df['timestamp'], format='mixed')  # Convert timestamp column to datetime
 
     for case_id, group in tqdm(df.groupby('CaseID'), desc='Preprocessing data'):
         caseids.append(case_id)
