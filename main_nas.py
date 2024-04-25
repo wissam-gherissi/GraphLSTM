@@ -92,7 +92,7 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
             df_dfg = pd.read_csv(f'./data/{object_name}.csv')
             dfg_data = get_dfg_from_df(df_dfg, activity_key=ACTIVITY_KEY, case_id_key=CASE_ID_KEY,
                                        timestamp_key=TIMESTAMP_KEY)
-            dfg_sources.append((dfg_data, f"additional_el{i + 1}"))
+            dfg_sources.append((dfg_data, object_name))
 
         # Unionize DFG sources
         G_union = unionize_dfg_sources(dfg_sources, threshold=0)
