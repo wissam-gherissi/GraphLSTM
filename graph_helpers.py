@@ -78,7 +78,7 @@ def multigraph_transform(G_multigraph):
 def prepare_data(graph, seq, edge_label_encoder):
     # Add degree to node features
 
-    degrees = torch.tensor([graph.degree[node] for node in seq]).unsqueeze(1).float()
+    degrees = torch.tensor([graph.degree[int(node)] for node in seq]).unsqueeze(1).float()
     x = torch.tensor(seq).unsqueeze(0).t().float()
     x = torch.cat((x, degrees), dim=1)
 
@@ -109,7 +109,6 @@ def prepare_data(graph, seq, edge_label_encoder):
 def data_generator(graph, X, y_act, y_times):
     # Prepare merged data
     nodes = X[:, :, 0]
-    subgraphs = [graph.subgraph(a) for a in nodes]
     subgraph_data = []
 
     edge_label_encoder = LabelEncoder()
@@ -121,8 +120,8 @@ def data_generator(graph, X, y_act, y_times):
     # Fit the label encoder on the unique first features
     edge_label_encoder.fit(list(unique_first_features))
 
-    for i in tqdm(range(len(subgraphs)), desc='Generating graph data'):
-        subgraph = subgraphs[i]
+    for i in tqdm(range(len(nodes)), desc='Generating graph data'):
+        subgraph = graph.subgraph(nodes[i])
         # We eliminate no edge graphs
         if len(subgraph.edges) > 0:
             x, edge_index, edge_attr = prepare_data(subgraph, nodes[i], edge_label_encoder)
