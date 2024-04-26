@@ -77,8 +77,9 @@ def multigraph_transform(G_multigraph):
 
 def prepare_data(graph, seq, edge_label_encoder):
     # Add degree to node features
-
-    degrees = torch.tensor([graph.degree[int(node)] for node in seq]).unsqueeze(1).float()
+    degree_dict = dict(graph.degree())
+    degrees = torch.tensor([degree_dict[int(node)] if node in degree_dict.keys() else 0 for node in seq]).unsqueeze(
+        1).float()
     x = torch.tensor(seq).unsqueeze(0).t().float()
     x = torch.cat((x, degrees), dim=1)
 
