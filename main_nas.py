@@ -120,7 +120,7 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
 
 def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim, lstm_hidden_dim, learning_rate_graph,
                    learning_rate_lstm):
-    main_eventlog = "orders-Enriched"
+    main_eventlog = "items-Enriched"
     model_used = "graph"
 
     with open(f'./pickle_files/trainset_{model_used}_{main_eventlog}.pkl', 'rb') as train_file:
@@ -347,8 +347,8 @@ if __name__ == '__main__':
 
     preprocess = True
     if preprocess:
-        main_eventlog = "orders-Enriched-Filtered"
-        additional_objects = ["items-Enriched-Filtered", "packages-Enriched"]
+        main_eventlog = "Container"
+        additional_objects = ["Customer Order", "Transport Document", "Truck", "Handling Unit", "Forklift", "Vehicle"]
         preprocess_and_prepare_graphs(main_eventlog, *additional_objects)
 
     acc = houci_function(num_epochs, num_layers, graph_hidden_size, graph_embedding_size, lstm_hidden_dim,
