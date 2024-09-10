@@ -68,6 +68,9 @@ class LSTMGATModel(torch.nn.Module):
         if model_used == "graph":
             gat_output = self.gat_model(data, data_input.shape[0])
             gat_output = self.bn_gnn(gat_output.permute(0, 2, 1)).permute(0, 2, 1)
+
+            device = gat_output.device
+            data_input = data_input.to(device)
             # Concatenate GAT output with LSTM input
             first_row = data_input[0, :, 0]
             concatenated_rows = []
