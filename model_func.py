@@ -70,36 +70,38 @@ class LSTMGATModel(torch.nn.Module):
             gat_output = self.bn_gnn(gat_output.permute(0, 2, 1)).permute(0, 2, 1)
 
             device = data_input.device
-            # Concatenate GAT output with LSTM input
-            first_row = data_input[0, :, 0]
-            concatenated_rows = []
-            for i in range(first_row.size(0)):
-                value = first_row[i].item()
 
-                indices_in_data = (data.x[:, 0] == value).nonzero(as_tuple=True)[0]
+            # Get the first row from each batch (shape: [batch_size, sequence_length])
+            first_row = data_input[:, :, 0]
 
-                if indices_in_data.size(0) > 0:
-                    # Handle the case where multiple matches are found
-                    if indices_in_data.size(0) > 1:
-                        # If multiple matches are found, handle as needed.
-                        # For now, let's just take the first match (you can change this behavior)
-                        index_in_data = indices_in_data[0].item()
+            # Create a tensor to hold the concatenated output (shape: [batch_size, sequence_length, input_size + gat_output_size])
+            concatenated_rows = torch.zeros(data_input.size(0), data_input.size(1),
+                                            data_input.size(2) + gat_output.size(2), device=device)
+
+            # Vectorized search for matching indices
+            for batch_idx in range(first_row.size(0)):
+                # Create a mask for matching indices between first_row and data.x
+                matching_indices = torch.zeros(first_row.size(1), dtype=torch.long, device=device)
+                for i in range(first_row.size(1)):
+                    value = first_row[batch_idx, i].item()
+                    indices_in_data = (data.x[:, 0] == value).nonzero(as_tuple=True)[0]
+                    if indices_in_data.size(0) > 0:
+                        # If multiple matches are found, just take the first one
+                        matching_indices[i] = indices_in_data[0]
                     else:
-                        index_in_data = indices_in_data.item()
+                        # If no match, set a flag for default behavior (using -1 as a flag here)
+                        matching_indices[i] = -1
 
-                    # Get the corresponding vector from gat_output
-                    vector_to_concat = gat_output[0, index_in_data, :]
-                else:
-                    # Default vector if value is not found
-                    vector_to_concat = torch.zeros(gat_output.size(2))
+                # Gather the corresponding vectors from gat_output using the indices
+                valid_indices_mask = matching_indices != -1
+                matched_vectors = torch.zeros(first_row.size(1), gat_output.size(2), device=device)
+                matched_vectors[valid_indices_mask] = gat_output[batch_idx, matching_indices[valid_indices_mask]]
 
-                # Concatenate the vector from gat_output to the corresponding row of data_input
-                vector_to_concat = vector_to_concat.to(device)
-                concatenated_row = torch.cat((data_input[0, i, :], vector_to_concat), dim=0)
-                concatenated_rows.append(concatenated_row)
+                # Concatenate the vectors from gat_output to data_input
+                concatenated_rows[batch_idx] = torch.cat((data_input[batch_idx], matched_vectors), dim=1)
 
-            lstm_input = torch.stack(concatenated_rows).unsqueeze(0)
-            lstm_input = lstm_input[:, 1:, :]
+            # Remove the first column (if needed) from the concatenated input
+            lstm_input = concatenated_rows[:, :, 1:]
             #lstm_input = torch.cat((data_input, gat_output), dim=-1)
         elif model_used == "LSTM":
             lstm_input = data_input
