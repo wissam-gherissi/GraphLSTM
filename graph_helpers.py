@@ -45,53 +45,25 @@ def unionize_dfg_sources(dfg_sources, threshold=0):
     return G_union
 
 
-def multigraph_transform(G_multigraph):
-    G = nx.Graph()
-    edges = dict()
-    max_num_features = 0
-    max_inner_dimensions = 0
-
-    for (source, target, data) in G_multigraph.edges(data=True):
-        features = list(data.values())
-        if source < target:
-            key = (source, target)
-            direction = 1  # Direction from source to target
-        else:
-            key = (target, source)
-            direction = 0  # Direction from target to source
-        if key in edges:
-            edges[key].append(features + [direction])
-        else:
-            edges[key] = [features + [direction]]
-        max_num_features = max(max_num_features, len(edges[key]))
-        max_inner_dimensions = max(max_inner_dimensions, len(features))
-
-    for edge, features_list in edges.items():
-        num_padding = max_num_features - len(features_list)
-        padded_features = [f + [0] * (max_inner_dimensions - len(f)) for f in features_list] + [
-            [0] * (max_inner_dimensions + 1)] * num_padding
-        G.add_edge(edge[0], edge[1], features=padded_features)
-
-    return G
-
-
-def prepare_data(graph, seq, edge_label_encoder):
+def prepare_data(graph, edge_label_encoder):
     # Add degree to node features
     degree_dict = dict(graph.degree())
-    degrees = torch.tensor([degree_dict[int(node)] if node in degree_dict.keys() else 0 for node in seq]).unsqueeze(
+    degrees = torch.tensor(
+        [degree_dict[int(node)] if node in degree_dict.keys() else 0 for node in list(graph.nodes)]).unsqueeze(
         1).float()
-    x = torch.tensor(seq).unsqueeze(0).t().float()
-    x = torch.cat((x, degrees), dim=1)
+
+    x = torch.tensor(list(graph.nodes)).unsqueeze(0).t().float()
+    x_old = torch.cat((x, degrees), dim=1)
+    x = torch.tensor(list(graph.degree())).float()
 
     # Replace edge node names with corresponding node IDs
     # edges = [(label_encoder.transform([source])[0], label_encoder.transform([target])[0]) for source, target
     #          in graph.edges()]
-    edges = [(list(seq).index(source), list(seq).index(target)) for source, target
-             in graph.edges()]
 
+    edges = [(list(graph.nodes).index(source), list(graph.nodes).index(target)) for source, target
+             in graph.edges()]
     # Create edge index tensor
     edge_index = torch.tensor(edges, dtype=torch.int64).t().contiguous()
-
     # Get edge features
     edge_features = []
     for source, target, data in graph.edges(data=True):
@@ -107,7 +79,30 @@ def prepare_data(graph, seq, edge_label_encoder):
     return x, edge_index, edge_attr
 
 
-def data_generator(graph, X, y_act, y_times):
+def data_generator(graph, X, y_act, y_times, edge_label_encoder):
+    # Prepare merged data
+    nodes = X[:, :, 0]
+    graph_data = []
+
+    unique_first_features = set()
+    # Iterate over edges to collect unique first features
+    for source, target, data in graph.edges(data=True):
+        for feature in data['features']:
+            unique_first_features.add(str(feature[0]))
+    # Fit the label encoder on the unique first features
+    edge_label_encoder.fit(list(unique_first_features))
+    x, edge_index, edge_attr = prepare_data(graph, edge_label_encoder)
+
+    for i in tqdm(range(len(nodes)), desc='Generating graph data'):
+        d = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+        d.lstm_input = torch.from_numpy(X[i, :,]).unsqueeze(0)
+        d.y_act = torch.from_numpy(y_act[i]).unsqueeze(0)
+        d.y_times = torch.from_numpy(y_times[i]).unsqueeze(0)
+        graph_data.append(d)
+    return graph_data, len(edge_attr[0])
+
+
+def data_generator_ancien(graph, X, y_act, y_times):
     # Prepare merged data
     nodes = X[:, :, 0]
     subgraph_data = []

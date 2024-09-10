@@ -51,31 +51,6 @@ def preprocess_data(df):
     return res
 
 
-def graph_train_test_split(data_df, graph_frac=0.1, train_frac=0.7, test_frac=0.2, random_state=None):
-    case_list = []
-    for case_id, group in data_df.groupby('CaseID'):
-        group['CaseID'] = case_id
-        case_list.append(group)
-    # Shuffle the DataFrame
-    case_list_shuffled = random.sample(case_list, k=len(case_list))
-
-    # Calculate the number of rows for each part
-    num_rows = len(case_list_shuffled)
-    graph_size = int(num_rows * graph_frac)
-    train_size = int(num_rows * train_frac)
-    test_size = num_rows - graph_size - train_size
-
-    # Split the data
-    graph_data = case_list_shuffled[:graph_size]
-    graph_data = pd.concat(graph_data, ignore_index=True)
-    train_data = case_list_shuffled[graph_size:graph_size + train_size]
-    train_data = pd.concat(train_data, ignore_index=True)
-    test_data = case_list_shuffled[graph_size + train_size:]
-    test_data = pd.concat(test_data, ignore_index=True)
-
-    return graph_data, train_data, test_data
-
-
 def prepare_character_encoding(lines):
     # Get all unique characters from the lines
     chars = list(set().union(*map(set, lines)))
@@ -194,3 +169,30 @@ def prepare_lstm_input_and_targets(sequences, maxlen, char_indices, char_act, sc
     normalized_time_targets = time_targets_array / time_target_means
 
     return np.array(lstm_input), np.array(act_targets), normalized_time_targets, time_target_means
+
+
+
+
+def graph_train_test_split(data_df, graph_frac=0.1, train_frac=0.7, test_frac=0.2, random_state=None):
+    case_list = []
+    for case_id, group in data_df.groupby('CaseID'):
+        group['CaseID'] = case_id
+        case_list.append(group)
+    # Shuffle the DataFrame
+    case_list_shuffled = random.sample(case_list, k=len(case_list))
+
+    # Calculate the number of rows for each part
+    num_rows = len(case_list_shuffled)
+    graph_size = int(num_rows * graph_frac)
+    train_size = int(num_rows * train_frac)
+    test_size = num_rows - graph_size - train_size
+
+    # Split the data
+    graph_data = case_list_shuffled[:graph_size]
+    graph_data = pd.concat(graph_data, ignore_index=True)
+    train_data = case_list_shuffled[graph_size:graph_size + train_size]
+    train_data = pd.concat(train_data, ignore_index=True)
+    test_data = case_list_shuffled[graph_size + train_size:]
+    test_data = pd.concat(test_data, ignore_index=True)
+
+    return graph_data, train_data, test_data

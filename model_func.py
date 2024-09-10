@@ -12,13 +12,14 @@ class GATModel(torch.nn.Module):
         self.target_size = target_size
         self.num_edge_features = num_edge_features
         self.num_layers = num_layers
+        self.add_self_loops = True
 
         # Create a list of GATConv layers
         self.convs = torch.nn.ModuleList(
-            [GATConv(self.num_features, self.hidden_size, edge_dim=self.num_edge_features)] + [
-                GATConv(self.hidden_size, self.hidden_size, edge_dim=self.num_edge_features)
+            [GATConv(self.num_features, self.hidden_size, edge_dim=self.num_edge_features, add_self_loops=self.add_self_loops)] + [
+                GATConv(self.hidden_size, self.hidden_size, edge_dim=self.num_edge_features, add_self_loops=self.add_self_loops)
                 for _ in range(self.num_layers - 2)] +
-            [GATConv(self.hidden_size, self.target_size, edge_dim=self.num_edge_features)])
+            [GATConv(self.hidden_size, self.target_size, edge_dim=self.num_edge_features, add_self_loops=self.add_self_loops)])
 
         # Linear layer for final output
         self.linear = nn.Linear(self.hidden_size, self.target_size)
@@ -61,14 +62,35 @@ class LSTMGATModel(torch.nn.Module):
         self.fc_timeR = nn.Linear(lstm_hidden_dim, 1)
 
     def forward(self, data, model_used):
-        # Pass the subgraph through the GAT model
+        # Pass the graph through the GAT model
         data_input = data.lstm_input
 
         if model_used == "graph":
             gat_output = self.gat_model(data, data_input.shape[0])
             gat_output = self.bn_gnn(gat_output.permute(0, 2, 1)).permute(0, 2, 1)
             # Concatenate GAT output with LSTM input
-            lstm_input = torch.cat((data_input, gat_output), dim=-1)
+            first_row = data_input[0, :, 0]
+            concatenated_rows = []
+            for i in range(first_row.size(0)):
+                value = first_row[i].item()
+
+                if value in data.x[:,0]:
+                    # Find the index of the value in data.
+                    index_in_data = (data.x[:,0] == value).nonzero(as_tuple=True)[0].item()
+
+                    # Get the corresponding vector from gat_output
+                    vector_to_concat = gat_output[0, index_in_data, :]
+                else:
+                    # Default vector if value is not found
+                    vector_to_concat = torch.zeros(gat_output.size(2))
+
+                # Concatenate the vector from gat_output to the corresponding row of data_input
+                concatenated_row = torch.cat((data_input[0, i, :], vector_to_concat), dim=0)
+                concatenated_rows.append(concatenated_row)
+
+            lstm_input = torch.stack(concatenated_rows).unsqueeze(0)
+            lstm_input = lstm_input[:, 1:, :]
+            #lstm_input = torch.cat((data_input, gat_output), dim=-1)
         elif model_used == "LSTM":
             lstm_input = data_input
         # Pass the concatenated input through the shared LSTM layer

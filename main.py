@@ -1,24 +1,20 @@
 import pickle
-from itertools import product
-
 import torch
 import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error, accuracy_score, precision_score, recall_score, \
     f1_score
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 import torch.optim as optim
 from torch.utils.data import random_split
 
-from model_func_nas import LSTMGATModel, GATModel
-from graph_helpers import get_dfg_from_df, unionize_dfg_sources, multigraph_transform, data_generator
+from model_func import LSTMGATModel, GATModel
+from graph_helpers import get_dfg_from_df, unionize_dfg_sources, data_generator
 from helper_func import preprocess_data, prepare_character_encoding, construct_sequences, \
     prepare_lstm_input_and_targets
-
-from src.search_space import SearchInstance, create_search_space
 
 ACTIVITY_KEY = 'ActivityID'
 CASE_ID_KEY = 'CaseID'
@@ -95,15 +91,16 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
             dfg_sources.append((dfg_data, object_name))
 
         # Unionize DFG sources
-        G_union = unionize_dfg_sources(dfg_sources, threshold=0)
+        G_union = unionize_dfg_sources(dfg_sources, threshold=50)
         # Add padding node
         G_union.add_node(0)
 
         # Prepare training data
+        edge_label_encoder = LabelEncoder()
         print("Train data generation...")
-        training_input, num_edge_features = data_generator(G_union, X_train_lstm, y_act_train, y_times_train)
+        training_input, num_edge_features = data_generator(G_union, X_train_lstm, y_act_train, y_times_train, edge_label_encoder)
         print("Test data generation...")
-        test_input, _ = data_generator(G_union, X_test_lstm, y_act_test, y_times_test)
+        test_input, _ = data_generator(G_union, X_test_lstm, y_act_test, y_times_test, edge_label_encoder)
 
         config = [maxlen, time_target_means, char_indices, num_edge_features]
     # Save training and test inputs to pickle files
@@ -118,9 +115,9 @@ def preprocess_and_prepare_graphs(main_eventlog, *additional_objects):
         pickle.dump(config, config_file)
 
 
-def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim, lstm_hidden_dim, learning_rate_graph,
-                   learning_rate_lstm):
-    main_eventlog = "items-Enriched"
+def main_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim, lstm_hidden_dim, learning_rate_graph,
+                  learning_rate_lstm):
+    main_eventlog = "packages-Enriched-Filtered"
     model_used = "graph"
 
     with open(f'./pickle_files/trainset_{model_used}_{main_eventlog}.pkl', 'rb') as train_file:
@@ -145,9 +142,9 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
     train_data, val_data = random_split(training_input, [train_size, val_size], generator=generator1)
 
     # Create DataLoader instances for training and validation sets
-    train_data_loaded = DataLoader(train_data, batch_size=64, shuffle=True)
-    val_data_loader = DataLoader(val_data, batch_size=64, shuffle=False)
-    test_data_loaded = DataLoader(test_input, batch_size=64, shuffle=False)
+    train_data_loaded = DataLoader(train_data, batch_size=1, shuffle=True)
+    val_data_loader = DataLoader(val_data, batch_size=1, shuffle=False)
+    test_data_loaded = DataLoader(test_input, batch_size=1, shuffle=False)
 
     # Number of features
     num_node_features = 2
@@ -294,21 +291,21 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
     rmse_timeR = np.sqrt(mse_timeR)
 
     # Print the metrics
-    # print("Classification Metrics:")
-    # print("Accuracy:", accuracy)
-    # print("Precision:", precision)
-    # print("Recall:", recall)
-    # print("F1-score:", f1)
-    #
-    # print("\nRegression Metrics (Time):")
-    # print("MAE:", mae_time)
-    # print("MSE:", mse_time)
-    # print("RMSE:", rmse_time)
-    #
-    # print("\nRegression Metrics (TimeR):")
-    # print("MAE:", mae_timeR)
-    # print("MSE:", mse_timeR)
-    # print("RMSE:", rmse_timeR)
+    print("Classification Metrics:")
+    print("Accuracy:", accuracy)
+    print("Precision:", precision)
+    print("Recall:", recall)
+    print("F1-score:", f1)
+
+    print("\nRegression Metrics (Time):")
+    print("MAE:", mae_time)
+    print("MSE:", mse_time)
+    print("RMSE:", rmse_time)
+
+    print("\nRegression Metrics (TimeR):")
+    print("MAE:", mae_timeR)
+    print("MSE:", mse_timeR)
+    print("RMSE:", rmse_timeR)
 
     metrics_dict = {
         "Metric": ["Accuracy", "F1-score", "MAE Time", "MAE TimeR"],
@@ -323,22 +320,12 @@ def houci_function(num_epochs, num_layers, graph_hidden_dim, graph_embedding_dim
 
     return accuracy
 
-
-# def houci_function_list(config_list, num_epochs):
-#     res = []
-#     for cfg in config_list:
-#         # num_layers, graph_hidden_size, graph_embedding_size, lstm_hidden_dim, learning_rate
-#         cfg = list(map(int, cfg[:4])) + list(map(float, cfg[-2:]))
-#         res.append(houci_function(num_epochs, *cfg))
-#     return res
-
-
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
     # Hyperparameters
     lstm_hidden_dim = 100
-    num_epochs = 20
+    num_epochs = 5
     num_layers = 3
     graph_hidden_size = 1024
     graph_embedding_size = 1024
@@ -347,49 +334,12 @@ if __name__ == '__main__':
 
     preprocess = True
     if preprocess:
-        main_eventlog = "Container"
-        additional_objects = ["Customer Order", "Transport Document", "Truck", "Handling Unit", "Forklift", "Vehicle"]
+        main_eventlog = "packages-Enriched-Filtered"
+        additional_objects = ["items-Enriched-Filtered", "orders-Enriched-Filtered"]
         preprocess_and_prepare_graphs(main_eventlog, *additional_objects)
 
-    acc = houci_function(num_epochs, num_layers, graph_hidden_size, graph_embedding_size, lstm_hidden_dim,
-                         learning_rate_graph, learning_rate_lstm)
+    acc = main_function(num_epochs, num_layers, graph_hidden_size, graph_embedding_size, lstm_hidden_dim,
+                        learning_rate_graph, learning_rate_lstm)
     print(acc)
 
     exit()
-
-# if __name__ == '__main__':
-#     num_layers_range = [3, 4, 5, 6, 7, 8]
-#     graph_hidden_size_range = [32, 64, 128, 256, 512, 1024, 2048]
-#     graph_embedding_size_range = [32, 64, 128, 256, 512, 1024, 2048]
-#     lstm_hidden_dim_range = [50, 100]
-#     learning_rate_graph_range = (np.arange(1, 10) * 1e-3).tolist() + [5e-4, 3e-2, 1e-4, 2e-4]
-#     learning_rate_lstm_range = (np.arange(1,10) * 1e-3).tolist()
-#     encodings = product(num_layers_range, graph_hidden_size_range,
-#                         graph_embedding_size_range, lstm_hidden_dim_range,
-#                         learning_rate_range)
-#     encodings = torch.Tensor(list(encodings))
-#     print(encodings.shape)
-#
-#     search_space = create_search_space(name='Exemple',
-#                                        save_filename='nas/test_search_space.dill',
-#                                        encodings=encodings,
-#                                        encoding_to_net=None,
-#                                        device='cpu')
-#     search_space.preprocess_no_pretraining()
-#
-#     hi_fi_eval = lambda encodings_lst: houci_function_list(encodings_lst, 20)
-#     hi_fi_cost = 20
-#
-#     lo_fi_eval = lambda encodings_lst: houci_function_list(encodings_lst, 5)
-#     lo_fi_cost = 5
-#
-#     search_instance = SearchInstance(name='Exemple',
-#                                      save_filename='nas/test_search_inst.dill',
-#                                      search_space_filename='nas/test_search_space.dill',
-#                                      hi_fi_eval=hi_fi_eval,
-#                                      hi_fi_cost=hi_fi_cost,
-#                                      lo_fi_eval=lo_fi_eval,
-#                                      lo_fi_cost=lo_fi_cost,
-#                                      device='cpu')
-#
-#     search_instance.run_search(eval_budget=int(1e6))
