@@ -74,9 +74,16 @@ class LSTMGATModel(torch.nn.Module):
             for i in range(first_row.size(0)):
                 value = first_row[i].item()
 
-                if value in data.x[:,0]:
-                    # Find the index of the value in data.
-                    index_in_data = (data.x[:,0] == value).nonzero(as_tuple=True)[0].item()
+                indices_in_data = (data.x[:, 0] == value).nonzero(as_tuple=True)[0]
+
+                if indices_in_data.size(0) > 0:
+                    # Handle the case where multiple matches are found
+                    if indices_in_data.size(0) > 1:
+                        # If multiple matches are found, handle as needed.
+                        # For now, let's just take the first match (you can change this behavior)
+                        index_in_data = indices_in_data[0].item()
+                    else:
+                        index_in_data = indices_in_data.item()
 
                     # Get the corresponding vector from gat_output
                     vector_to_concat = gat_output[0, index_in_data, :]
