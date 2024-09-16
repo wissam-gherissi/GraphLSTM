@@ -1,5 +1,6 @@
+import numpy as np
 import torch
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 import pm4py
 import networkx as nx
 from torch_geometric.data import Data
@@ -18,6 +19,28 @@ def get_dfg_from_df(df, activity_key='ActivityID', case_id_key='CaseID', timesta
     return dfg_data
 
 
+def normalize_edge_weights(edge_features):
+    raw_weights = []
+    # Extract the second feature (weights) from each inner list
+    for feature_set in edge_features:
+        for feature in feature_set:
+            raw_weights.append(feature[1])
+
+    # Convert to tensor and normalize
+    raw_weights = torch.tensor(raw_weights).float().unsqueeze(1)
+    scaler = StandardScaler()
+    scaled_weights = scaler.fit_transform(raw_weights).flatten()
+
+    # Reassign the scaled weights to the original feature sets
+    weight_idx = 0
+    for feature_set in edge_features:
+        for feature in feature_set:
+            feature[1] = scaled_weights[weight_idx]
+            weight_idx += 1
+
+    return edge_features
+
+
 def unionize_dfg_sources(dfg_sources, threshold=0):
     # Create an empty Directed Graph
     G_union = nx.DiGraph()
@@ -28,7 +51,7 @@ def unionize_dfg_sources(dfg_sources, threshold=0):
             if weight >= threshold:
                 edge_key = (int(source), int(target))
                 if G_union.has_edge(*edge_key):
-                    # If the edge already exists, update its features
+                    # If the edge already exists, concatenate the features
                     existing_data = G_union.get_edge_data(*edge_key)
                     existing_data['features'].append([source_label, weight])
                 else:
@@ -45,60 +68,90 @@ def unionize_dfg_sources(dfg_sources, threshold=0):
     return G_union
 
 
-def prepare_data(graph, edge_label_encoder):
+def prepare_data(graph, onehot_encoder, scaler):
     # Add degree to node features
     degree_dict = dict(graph.degree())
-    degrees = torch.tensor(
-        [degree_dict[int(node)] if node in degree_dict.keys() else 0 for node in list(graph.nodes)]).unsqueeze(
-        1).float()
+    degrees = torch.tensor([degree_dict.get(int(node), 0) for node in list(graph.nodes)]).unsqueeze(1).float()
 
+    # Assuming nodes are represented by their indices
     x = torch.tensor(list(graph.nodes)).unsqueeze(0).t().float()
-    x_old = torch.cat((x, degrees), dim=1)
-    x = torch.tensor(list(graph.degree())).float()
 
-    # Replace edge node names with corresponding node IDs
-    # edges = [(label_encoder.transform([source])[0], label_encoder.transform([target])[0]) for source, target
-    #          in graph.edges()]
+    # Concatenating node degrees as an additional feature
+    x_features = torch.cat((x, degrees), dim=1)
 
     edges = [(list(graph.nodes).index(source), list(graph.nodes).index(target)) for source, target
              in graph.edges()]
     # Create edge index tensor
     edge_index = torch.tensor(edges, dtype=torch.int64).t().contiguous()
-    # Get edge features
+
+    # Prepare edge features
     edge_features = []
+    source_features = []
+    weight_features = []
+
+    # Collect all 'source' and 'weight' features for one-hot encoding and scaling
     for source, target, data in graph.edges(data=True):
-        encoded_data = []
-        for i, feature in enumerate(data['features']):
-            # Label encode each feature of the inner list
-            first_feature_encoded = edge_label_encoder.transform([str(feature[0])])[0]
-            encoded_features = [first_feature_encoded] + feature[1:]
-            encoded_data.extend(encoded_features)
-        edge_features.append(torch.tensor(encoded_data).float())
+        for feature in data['features']:
+            source_features.append([str(feature[0])])
+            weight_features.append([feature[1]])
+
+    # One-hot encode the source features
+    onehot_encoded = onehot_encoder.transform(source_features)
+    # Scale weights features
+    scaled_weights = scaler.transform(weight_features)
+
+    for i, (source, target, data) in enumerate(graph.edges(data=True)):
+        onehot_combined = []
+        scaled_weight_combined = []
+
+        # Collect features for this edge
+        for feature in data['features']:
+                onehot = onehot_encoded[source_features.index([str(feature[0])])].toarray().flatten()
+                scaled_weight = scaled_weights[weight_features.index([feature[1]])]
+
+                onehot_combined.append(onehot)
+                scaled_weight_combined.append(scaled_weight)
+
+        # Flatten and combine all features for this edge
+        combined_features = np.concatenate(onehot_combined + scaled_weight_combined).flatten()
+        edge_features.append(torch.tensor(combined_features).float())
+
+    # Stack all edge features into a tensor
     edge_attr = torch.stack(edge_features)
 
-    return x, edge_index, edge_attr
+    return x_features, edge_index, edge_attr
 
 
-def data_generator(graph, X, y_act, y_times, edge_label_encoder):
+def data_generator(graph, X, y_act, y_times, onehot_encoder, scaler, training=True):
     # Prepare merged data
     nodes = X[:, :, 0]
     graph_data = []
 
-    unique_first_features = set()
-    # Iterate over edges to collect unique first features
-    for source, target, data in graph.edges(data=True):
-        for feature in data['features']:
-            unique_first_features.add(str(feature[0]))
-    # Fit the label encoder on the unique first features
-    edge_label_encoder.fit(list(unique_first_features))
-    x, edge_index, edge_attr = prepare_data(graph, edge_label_encoder)
+    source_features = []
+    weight_features = []
+
+    if training:
+        # Collect all 'source' and 'weight' features for one-hot encoding and scaling
+        for source, target, data in graph.edges(data=True):
+            for feature in data['features']:
+                source_features.append([str(feature[0])])
+                weight_features.append([feature[1]])
+
+        # Fit the onehot_encoder on the collected source features
+        onehot_encoder.fit(np.array(source_features).reshape(-1, 1))
+
+        # Fit the scaler on the collected weight features
+        scaler.fit(np.array(weight_features).reshape(-1, 1))
+
+    x, edge_index, edge_attr = prepare_data(graph, onehot_encoder, scaler)
 
     for i in tqdm(range(len(nodes)), desc='Generating graph data'):
         d = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
-        d.lstm_input = torch.from_numpy(X[i, :,]).unsqueeze(0)
+        d.lstm_input = torch.from_numpy(X[i, :, ]).unsqueeze(0)
         d.y_act = torch.from_numpy(y_act[i]).unsqueeze(0)
         d.y_times = torch.from_numpy(y_times[i]).unsqueeze(0)
         graph_data.append(d)
+
     return graph_data, len(edge_attr[0])
 
 
@@ -108,13 +161,13 @@ def data_generator_ancien(graph, X, y_act, y_times):
     subgraph_data = []
 
     edge_label_encoder = LabelEncoder()
-    unique_first_features = set()
+    unique_object_types = set()
     # Iterate over edges to collect unique first features
     for source, target, data in graph.edges(data=True):
         for feature in data['features']:
-            unique_first_features.add(str(feature[0]))
+            unique_object_types.add(str(feature[0]))
     # Fit the label encoder on the unique first features
-    edge_label_encoder.fit(list(unique_first_features))
+    edge_label_encoder.fit(list(unique_object_types))
 
     for i in tqdm(range(len(nodes)), desc='Generating graph data'):
         subgraph = graph.subgraph(nodes[i])

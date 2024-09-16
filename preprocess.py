@@ -1,7 +1,153 @@
+import os
+import pickle
+
 import pandas as pd
 import numpy as np
 import random
+
+import torch
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, StandardScaler
+from torch_geometric.data import Data
 from tqdm import tqdm
+
+from graph_helpers import get_dfg_from_df, unionize_dfg_sources, data_generator
+
+ACTIVITY_KEY = 'ActivityID'
+CASE_ID_KEY = 'CaseID'
+TIMESTAMP_KEY = 'timestamp'
+
+
+
+def preprocess_and_prepare_graphs(model_used, ocel, main_ot, ocdfg, threshold):
+    # Read main CSV file
+    main_file_path = os.path.join('.', 'data', ocel, f'{main_ot}.csv')
+    # Load the CSV file into a DataFrame
+    df_main = pd.read_csv(main_file_path)
+
+    # Preprocess data into cases and calculate temporal features and number of related objects
+    data_df = preprocess_data(df_main)
+
+    # Split data into train and test sets
+    train_data, test_data = train_test_split(data_df, test_size=0.2, random_state=1)
+
+    # train_cases = np.array(train_data['caseid'])
+    # df1 = df_main[df_main['CaseID'].isin(train_cases)].copy()
+
+    # Find the maximum line size
+    maxlen = max(len(line) for line in data_df['lines'])
+
+    # Prepare character encoding
+    chars, char_indices, indices_char, char_act = prepare_character_encoding(data_df['lines'])
+
+    train_sequences = construct_sequences(train_data)
+
+    test_sequences = construct_sequences(test_data)
+
+    # Initialize the scaler
+    scaler = MinMaxScaler()
+
+    # Prepare LSTM input and targets for training data
+    X_train_lstm, y_act_train, y_times_train, time_target_means = prepare_lstm_input_and_targets(
+        train_sequences,
+        maxlen,
+        char_indices,
+        char_act, scaler)
+
+    # Prepare LSTM input and targets for test data
+    X_test_lstm, y_act_test, y_times_test, _ = prepare_lstm_input_and_targets(test_sequences, maxlen, char_indices,
+                                                                              char_act, scaler)
+    training_input = []
+    test_input = []
+    if model_used == "LSTM":
+        for i in range(len(X_train_lstm)):
+            d = Data()
+            d.lstm_input = torch.from_numpy(X_train_lstm[i]).unsqueeze(0)
+            d.y_act = torch.from_numpy(y_act_train[i]).unsqueeze(0)
+            d.y_times = torch.from_numpy(y_times_train[i]).unsqueeze(0)
+            training_input.append(d)
+        for i in range(len(X_test_lstm)):
+            d = Data()
+            d.lstm_input = torch.from_numpy(X_test_lstm[i]).unsqueeze(0)
+            d.y_act = torch.from_numpy(y_act_test[i]).unsqueeze(0)
+            d.y_times = torch.from_numpy(y_times_test[i]).unsqueeze(0)
+            test_input.append(d)
+        config = [maxlen, time_target_means, char_indices]
+
+    elif model_used == "GRAPH":
+
+        # Graph preprocessing
+        print("Graph preprocessing...")
+        dfg_sources = []  # (get_dfg_from_df(df1, activity_key=ACTIVITY_KEY, case_id_key=CASE_ID_KEY,
+        #                                timestamp_key=TIMESTAMP_KEY), main_ot)]
+        for i, object_name in enumerate(ocdfg):
+            file_path = os.path.join('.', 'data', ocel, f'{object_name}.csv')
+            # Load the CSV file into a DataFrame
+            df_dfg = pd.read_csv(file_path)
+            dfg_data = get_dfg_from_df(df_dfg, activity_key=ACTIVITY_KEY, case_id_key=CASE_ID_KEY,
+                                       timestamp_key=TIMESTAMP_KEY)
+            dfg_sources.append((dfg_data, object_name))
+
+        # Unionize DFG sources
+        G_union = unionize_dfg_sources(dfg_sources, threshold=threshold)
+        # Add padding node
+        # G_union.add_node(0)
+
+        # Prepare training data
+        onehot_encoder = OneHotEncoder()
+        scaler = StandardScaler()
+        print("Train data generation...")
+        training_input, num_edge_features = data_generator(G_union, X_train_lstm, y_act_train, y_times_train,
+                                                           onehot_encoder, scaler, training=True)
+        print("Test data generation...")
+        test_input, _ = data_generator(G_union, X_test_lstm, y_act_test, y_times_test, onehot_encoder, scaler,
+                                       training=False)
+
+        config = [maxlen, time_target_means, char_indices, num_edge_features]
+
+    # Save training and test inputs to pickle files
+
+    # Define the base directory for the pickle files
+    pickle_dir = os.path.join('.', 'pickle_files')
+
+    # Construct file paths using os.path.join()
+    train_file_path = os.path.join(pickle_dir, f'trainset_{model_used}_{ocel}_{main_ot}.pkl')
+    test_file_path = os.path.join(pickle_dir, f'testset_{model_used}_{ocel}_{main_ot}.pkl')
+    config_file_path = os.path.join(pickle_dir, f'config_{model_used}_{ocel}_{main_ot}.pkl')
+
+    # Save the training input
+    with open(train_file_path, 'wb') as train_file:
+        pickle.dump(training_input, train_file)
+
+    # Save the test input
+    with open(test_file_path, 'wb') as test_file:
+        pickle.dump(test_input, test_file)
+
+    # Save the configuration
+    with open(config_file_path, 'wb') as config_file:
+        pickle.dump(config, config_file)
+
+def load_data(model_used, ocel, main_ot):
+    pickle_dir = os.path.join('.', 'pickle_files')
+    train_file_path = os.path.join(pickle_dir, f'trainset_{model_used}_{ocel}_{main_ot}.pkl')
+    test_file_path = os.path.join(pickle_dir, f'testset_{model_used}_{ocel}_{main_ot}.pkl')
+    config_file_path = os.path.join(pickle_dir, f'config_{model_used}_{ocel}_{main_ot}.pkl')
+
+    with open(train_file_path, 'rb') as train_file:
+        training_input = pickle.load(train_file)
+
+    with open(test_file_path, 'rb') as test_file:
+        test_input = pickle.load(test_file)
+
+    with open(config_file_path, 'rb') as config_file:
+        if model_used == "GRAPH":
+            Maxlen, time_target_means, Char_indices, num_edge_features = pickle.load(config_file)
+        elif model_used == "LSTM":
+            Maxlen, time_target_means, Char_indices = pickle.load(config_file)
+            num_edge_features = 0
+
+    return training_input, test_input, Maxlen, time_target_means, Char_indices, num_edge_features
+
 
 def preprocess_data(df):
     caseids, lines, timeseqs, timeseqs2, timeseqs3, timeseqs4, nb_itemseqs, timeseqsF = [], [], [], [], [], [], [], []
