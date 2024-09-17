@@ -198,7 +198,7 @@ def initialize_optimizers(lstm_gat_model, learning_rate_lstm, learning_rate_grap
     return optimizer_lstm, optimizer_graph
 
 
-def train_model(lstm_gat_model, model_used, train_data_loaded, val_data_loader, num_epochs, optimizer_lstm,
+def train_model(lstm_gat_model, model_used, threshold, train_data_loaded, val_data_loader, num_epochs, optimizer_lstm,
                 optimizer_graph,
                 model_dir, patience=5, task_type='all'):
     classification_criterion = torch.nn.CrossEntropyLoss()
@@ -243,11 +243,13 @@ def train_model(lstm_gat_model, model_used, train_data_loaded, val_data_loader, 
                 act_output, time_output, timeR_output = lstm_gat_model(data, model_used, task_type)
                 if task_type == "classification" or task_type == "next" or task_type == "all":
                     classification_loss = classification_criterion(act_output, data.y_act)
+                    val_loss += classification_loss.item()
                 if task_type == "regression" or task_type == "next" or task_type == "all":
                     regression_loss1 = regression_criterion(time_output, data.y_times[:, 0].unsqueeze(1))
+                    val_loss += regression_loss1.item()
                 if task_type == "regression" or task_type == "remaining" or task_type == "all":
                     regression_loss2 = regression_criterion(timeR_output, data.y_times[:, 1].unsqueeze(1))
-                val_loss += (classification_loss + regression_loss1 + regression_loss2).item()
+                    val_loss += regression_loss2.item()
 
         epoch_val_loss = val_loss / len(val_data_loader)
         print(f', Val Loss: {epoch_val_loss:.4f}')
@@ -256,7 +258,7 @@ def train_model(lstm_gat_model, model_used, train_data_loaded, val_data_loader, 
         if epoch_val_loss < best_val_loss:
             best_val_loss = epoch_val_loss
             # Save the best model
-            model_path = os.path.join(model_dir, f'best_model_{model_used}.pth')
+            model_path = os.path.join(model_dir, f'best_model_{model_used}_{threshold}.pth')
             save_model(lstm_gat_model, model_path)
             print(f'Saved best model with validation loss: {best_val_loss:.4f}')
             counter = 0
@@ -371,7 +373,7 @@ def evaluate_model(lstm_gat_model, model_used, test_data_loaded, time_target_mea
     return metrics
 
 
-def save_results(metrics, results_dir, model_used, task_type):
+def save_results(metrics, results_dir, model_used, task_type, threshold):
     """
     Saves the evaluation metrics to a file.
 
@@ -381,7 +383,7 @@ def save_results(metrics, results_dir, model_used, task_type):
         model_used (str): Specifies the model used
         task_type (str): The type of task ('classification', 'regression', 'remaining', or 'all').
     """
-    file_path = os.path.join(results_dir, f"{model_used}.csv")
+    file_path = os.path.join(results_dir, f"{model_used}-{threshold}.csv")
     with open(file_path, 'a') as f:
         f.write(f"Results for task type: {task_type}\n")
 
