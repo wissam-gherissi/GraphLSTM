@@ -21,12 +21,6 @@ MAIN_OT = "items"
 OCDFG = ["items", "orders", "packages"]
 TASK_TYPE = "all"
 
-MODELS_DIR = os.path.join('.', 'models', OCEL, MAIN_OT, f'best_model_{MODEL_USED}.pt')
-os.makedirs(MODELS_DIR, exist_ok=True)
-
-RESULTS_DIR = os.path.join('.', 'results', OCEL, MAIN_OT)
-os.makedirs(RESULTS_DIR, exist_ok=True)
-
 
 def main_function(preprocess, model_used, ocel, main_ot, ocdfg, num_epochs=20, num_layers=1, dropout=0,
                   graph_hidden_dim=8,
@@ -93,6 +87,12 @@ if __name__ == '__main__':
 
     PARAMS = [NUM_EPOCHS, NUM_LAYERS, DROPOUT, GRAPH_HIDDEN_SIZE, GRAPH_EMBEDDING_SIZE, LSTM_HIDDEN_DIM,
               LR_GRAPH, LR_LSTM, THRESHOLD, PATIENCE, TASK_TYPE]
+
+    MODELS_DIR = os.path.join('.', 'models', OCEL, MAIN_OT, f'best_model_{MODEL_USED}.pt')
+    os.makedirs(MODELS_DIR, exist_ok=True)
+
+    RESULTS_DIR = os.path.join('.', 'results', OCEL, MAIN_OT)
+    os.makedirs(RESULTS_DIR, exist_ok=True)
 
     PREPROCESS = True
     MODEL_USED = "GRAPH"
