@@ -19,36 +19,20 @@ def get_dfg_from_df(df, activity_key='ActivityID', case_id_key='CaseID', timesta
     return dfg_data
 
 
-def normalize_edge_weights(edge_features):
-    raw_weights = []
-    # Extract the second feature (weights) from each inner list
-    for feature_set in edge_features:
-        for feature in feature_set:
-            raw_weights.append(feature[1])
-
-    # Convert to tensor and normalize
-    raw_weights = torch.tensor(raw_weights).float().unsqueeze(1)
-    scaler = StandardScaler()
-    scaled_weights = scaler.fit_transform(raw_weights).flatten()
-
-    # Reassign the scaled weights to the original feature sets
-    weight_idx = 0
-    for feature_set in edge_features:
-        for feature in feature_set:
-            feature[1] = scaled_weights[weight_idx]
-            weight_idx += 1
-
-    return edge_features
-
-
 def unionize_dfg_sources(dfg_sources, threshold=0):
     # Create an empty Directed Graph
     G_union = nx.DiGraph()
     max_features_length = 0
+    # First, find the maximum weight across all DFGs
+    all_weights = [weight for dfg_data, _ in dfg_sources for (_, _), weight in dfg_data.items()]
+    mean_weight = sum(all_weights)/len(all_weights)
+
+    # Compute the actual threshold based on the max weight and the input threshold percentage
+    actual_threshold = (threshold/100) * mean_weight
     for dfg_data, source_label in dfg_sources:
         for (source, target), weight in dfg_data.items():
             # Add edges with a 'source' attribute to separate graphs
-            if weight >= threshold:
+            if weight >= actual_threshold:
                 edge_key = (int(source), int(target))
                 if G_union.has_edge(*edge_key):
                     # If the edge already exists, concatenate the features

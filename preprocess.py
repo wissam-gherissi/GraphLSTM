@@ -111,9 +111,9 @@ def preprocess_and_prepare_graphs(model_used, ocel, main_ot, ocdfg, threshold):
     pickle_dir = os.path.join('.', 'pickle_files')
 
     # Construct file paths using os.path.join()
-    train_file_path = os.path.join(pickle_dir, f'trainset_{model_used}_{ocel}_{main_ot}.pkl')
-    test_file_path = os.path.join(pickle_dir, f'testset_{model_used}_{ocel}_{main_ot}.pkl')
-    config_file_path = os.path.join(pickle_dir, f'config_{model_used}_{ocel}_{main_ot}.pkl')
+    train_file_path = os.path.join(pickle_dir, f'trainset_{ocel}_{main_ot}_{model_used}_{threshold}.pkl')
+    test_file_path = os.path.join(pickle_dir, f'testset_{ocel}_{main_ot}_{model_used}_{threshold}.pkl')
+    config_file_path = os.path.join(pickle_dir, f'config_{ocel}_{main_ot}_{model_used}_{threshold}.pkl')
 
     # Save the training input
     with open(train_file_path, 'wb') as train_file:
@@ -127,11 +127,12 @@ def preprocess_and_prepare_graphs(model_used, ocel, main_ot, ocdfg, threshold):
     with open(config_file_path, 'wb') as config_file:
         pickle.dump(config, config_file)
 
-def load_data(model_used, ocel, main_ot):
+
+def load_data(model_used, ocel, main_ot, threshold):
     pickle_dir = os.path.join('.', 'pickle_files')
-    train_file_path = os.path.join(pickle_dir, f'trainset_{model_used}_{ocel}_{main_ot}.pkl')
-    test_file_path = os.path.join(pickle_dir, f'testset_{model_used}_{ocel}_{main_ot}.pkl')
-    config_file_path = os.path.join(pickle_dir, f'config_{model_used}_{ocel}_{main_ot}.pkl')
+    train_file_path = os.path.join(pickle_dir, f'trainset_{ocel}_{main_ot}_{model_used}_{threshold}.pkl')
+    test_file_path = os.path.join(pickle_dir, f'testset_{ocel}_{main_ot}_{model_used}_{threshold}.pkl')
+    config_file_path = os.path.join(pickle_dir, f'config_{ocel}_{main_ot}_{model_used}_{threshold}.pkl')
 
     with open(train_file_path, 'rb') as train_file:
         training_input = pickle.load(train_file)

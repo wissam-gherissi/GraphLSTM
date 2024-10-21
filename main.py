@@ -23,7 +23,8 @@ def main_function(preprocess, model_used, models_dir, results_dir, ocel, main_ot
     if preprocess:
         preprocess_and_prepare_graphs(model_used, ocel, main_ot, ocdfg, threshold)
     training_input, test_input, Maxlen, time_target_means, Char_indices, num_edge_features = load_data(model_used, ocel,
-                                                                                                       main_ot)
+                                                                                                       main_ot,
+                                                                                                       threshold)
     num_target_chars = len(Char_indices)
     total_size = len(training_input)
     train_size = int(0.8 * total_size)
@@ -46,7 +47,8 @@ def main_function(preprocess, model_used, models_dir, results_dir, ocel, main_ot
                                        num_edge_features, num_layers, input_dim, lstm_hidden_dim, num_target_chars)
     optimizer_lstm, optimizer_graph = initialize_optimizers(lstm_gat_model, learning_rate_lstm, learning_rate_graph)
 
-    _ = train_model(lstm_gat_model, model_used, threshold, train_data_loaded, val_data_loader, num_epochs, optimizer_lstm,
+    _ = train_model(lstm_gat_model, model_used, threshold, train_data_loaded, val_data_loader, num_epochs,
+                    optimizer_lstm,
                     optimizer_graph, models_dir, patience, task_type)
     best_model_path = os.path.join(models_dir, f'best_model_{model_used}_{threshold}.pth')
     # Initialize the components of the LSTMGATModel
@@ -78,37 +80,44 @@ if __name__ == '__main__':
     DROPOUT = 0
 
     PREPROCESS = True
-    OCEL = "order-management"
-    OCDFG = ["items", "orders", "packages"]
+    OCEL = "ocel2-p2p"
+    OCDFG = ["goods receipt", "invoice receipt", "purchase_order", "purchase_requisition", "quotation"]
     TASK_TYPE = "all"
 
-    THRESHOLD_OPTIONS = [0, 10, 100, 500]  # Example values
+    THRESHOLD_OPTIONS = [0, 10, 25, 50, 75, 100]  # Example values
     MODEL_USED_OPTIONS = ["LSTM", "GRAPH"]  # Example values
-    MAIN_OT_OPTIONS = ["packages", "orders", "items"]  # Example values
-    TASK_TYPE_OPTIONS = ["all", "next", "classification", "regression", "remaining"]
+    OCEL_OPTIONS = ["ocel2-p2p", "ContainerLogistics", "order_management", "running-example", "BPI_Challenge_2017"]
+    MAIN_OT_OPTIONS = {
+        "ocel2-p2p": ["goods receipt", "invoice receipt", "purchase_order", "purchase_requisition", "quotation"],
+        "ContainerLogistics": ["Container", "Transport Document", "Vehicle"],
+        "order_management": ["orders", "items", "packages"],
+        "running-example": ["orders", "items", "packages"],
+        "BPI_Challenge_2017": ["application", "offer"]}  # Example values
+    TASK_TYPE_OPTIONS = ["all", "next", "classification", "remaining"]
 
-    for MODEL_USED in MODEL_USED_OPTIONS:
-        for MAIN_OT in MAIN_OT_OPTIONS:
+    for OCEL in OCEL_OPTIONS:
+        for MAIN_OT in MAIN_OT_OPTIONS[OCEL]:
             for TASK_TYPE in TASK_TYPE_OPTIONS:
-                # Only iterate over thresholds if the model is GRAPH
-                thresholds = THRESHOLD_OPTIONS if MODEL_USED == "GRAPH" else [0]
+                for MODEL_USED in MODEL_USED_OPTIONS:
+                    # Only iterate over thresholds if the model is GRAPH
+                    thresholds = THRESHOLD_OPTIONS if MODEL_USED == "GRAPH" else [0]
 
-                for THRESHOLD in thresholds:
-                    # Define PARAMS with the current value of THRESHOLD
-                    PARAMS = [NUM_EPOCHS, NUM_LAYERS, DROPOUT, GRAPH_HIDDEN_SIZE, GRAPH_EMBEDDING_SIZE, LSTM_HIDDEN_DIM,
-                              LR_GRAPH, LR_LSTM, THRESHOLD, PATIENCE, TASK_TYPE]
+                    for THRESHOLD in thresholds:
+                        # Define PARAMS with the current value of THRESHOLD
+                        PARAMS = [NUM_EPOCHS, NUM_LAYERS, DROPOUT, GRAPH_HIDDEN_SIZE, GRAPH_EMBEDDING_SIZE, LSTM_HIDDEN_DIM,
+                                  LR_GRAPH, LR_LSTM, THRESHOLD, PATIENCE, TASK_TYPE]
 
-                    # Set up directories for models and results
-                    MODELS_DIR = os.path.join('.', 'models', OCEL, MAIN_OT, TASK_TYPE)
-                    RESULTS_DIR = os.path.join('.', 'results', OCEL, MAIN_OT, TASK_TYPE)
-                    os.makedirs(MODELS_DIR, exist_ok=True)
-                    os.makedirs(RESULTS_DIR, exist_ok=True)
+                        # Set up directories for models and results
+                        MODELS_DIR = os.path.join('.', 'models', OCEL, MAIN_OT, TASK_TYPE)
+                        RESULTS_DIR = os.path.join('.', 'results', OCEL, MAIN_OT, TASK_TYPE)
+                        os.makedirs(MODELS_DIR, exist_ok=True)
+                        os.makedirs(RESULTS_DIR, exist_ok=True)
 
-                    # Run main_function with the current combination
-                    metrics = main_function(PREPROCESS, MODEL_USED, MODELS_DIR, RESULTS_DIR, OCEL, MAIN_OT, OCDFG,
-                                            *PARAMS)
+                        # Run main_function with the current combination
+                        metrics = main_function(PREPROCESS, MODEL_USED, MODELS_DIR, RESULTS_DIR, OCEL, MAIN_OT, OCDFG,
+                                                *PARAMS)
 
-                    # Print the results for this combination
-                    print(f"Model: {MODEL_USED}, Task: {TASK_TYPE}, Main OT: {MAIN_OT}, Threshold: {THRESHOLD}, "
-                          f"Metrics: {metrics}")
+                        # Print the results for this combination
+                        print(f"Model: {MODEL_USED}, Task: {TASK_TYPE}, Main OT: {MAIN_OT}, Threshold: {THRESHOLD}, "
+                              f"Metrics: {metrics}")
     exit()

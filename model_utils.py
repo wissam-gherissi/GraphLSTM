@@ -353,7 +353,7 @@ def evaluate_model(lstm_gat_model, model_used, test_data_loaded, time_target_mea
         rmse_time = np.sqrt(mse_time)
 
         metrics.update({
-            "MAE Time": mae_time,
+            "MAE Time": mae_time/86400,
             "MSE Time": mse_time,
             "RMSE Time": rmse_time
         })
@@ -365,7 +365,7 @@ def evaluate_model(lstm_gat_model, model_used, test_data_loaded, time_target_mea
         rmse_timeR = np.sqrt(mse_timeR)
 
         metrics.update({
-            "MAE TimeR": mae_timeR,
+            "MAE TimeR": mae_timeR/86400,
             "MSE TimeR": mse_timeR,
             "RMSE TimeR": rmse_timeR
         })
@@ -383,16 +383,14 @@ def save_results(metrics, results_dir, model_used, task_type, threshold):
         model_used (str): Specifies the model used
         task_type (str): The type of task ('classification', 'regression', 'remaining', or 'all').
     """
-    file_path = os.path.join(results_dir, f"{model_used}-{threshold}.csv")
+    file_path = os.path.join(results_dir, f"{model_used}.csv")
     with open(file_path, 'a') as f:
-        f.write(f"Results for task type: {task_type}\n")
+        f.write(f"Results for threshold: {threshold}\n")
 
         # Save classification metrics
         if task_type == "classification" or task_type == "next" or task_type == "all":
             f.write("Classification Metrics (Next Activity Prediction):\n")
             f.write(f"  Accuracy: {metrics.get('Accuracy', 'N/A')}\n")
-            f.write(f"  Precision: {metrics.get('Precision', 'N/A')}\n")
-            f.write(f"  Recall: {metrics.get('Recall', 'N/A')}\n")
             f.write(f"  F1-score: {metrics.get('F1-score', 'N/A')}\n")
             f.write("\n")
 
@@ -400,16 +398,12 @@ def save_results(metrics, results_dir, model_used, task_type, threshold):
         if task_type == "regression" or task_type == "next" or task_type == "all":
             f.write("Regression Metrics (Event Time Prediction):\n")
             f.write(f"  MAE Time: {metrics.get('MAE Time', 'N/A')}\n")
-            f.write(f"  MSE Time: {metrics.get('MSE Time', 'N/A')}\n")
-            f.write(f"  RMSE Time: {metrics.get('RMSE Time', 'N/A')}\n")
             f.write("\n")
 
         # Save remaining time prediction metrics
-        if task_type == "remaining" or task_type == "all":
+        if task_type == "regression" or task_type == "remaining" or task_type == "all":
             f.write("Regression Metrics (Remaining Time Prediction):\n")
             f.write(f"  MAE TimeR: {metrics.get('MAE TimeR', 'N/A')}\n")
-            f.write(f"  MSE TimeR: {metrics.get('MSE TimeR', 'N/A')}\n")
-            f.write(f"  RMSE TimeR: {metrics.get('RMSE TimeR', 'N/A')}\n")
             f.write("\n")
 
         f.write("-" * 50 + "\n")
