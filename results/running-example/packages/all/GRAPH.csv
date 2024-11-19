@@ -1,0 +1,72 @@
+Results for threshold: 0
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.905982905982906
+  F1-score: 0.8633939659580685
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 0.37221668384693285
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 0.5135755750868055
+
+--------------------------------------------------
+Results for threshold: 10
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.905982905982906
+  F1-score: 0.8633939659580685
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 0.3543466751663773
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 0.5222232620804398
+
+--------------------------------------------------
+Results for threshold: 25
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.905982905982906
+  F1-score: 0.8633939659580685
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 0.34977708604600694
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 0.5143098054108797
+
+--------------------------------------------------
+Results for threshold: 50
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.905982905982906
+  F1-score: 0.8633939659580685
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 0.344119556568287
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 0.5131736472800926
+
+--------------------------------------------------
+Results for threshold: 75
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.9076923076923077
+  F1-score: 0.8674544633448743
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 0.3465534125434028
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 0.5117112449363426
+
+--------------------------------------------------
+Results for threshold: 100
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.905982905982906
+  F1-score: 0.8633939659580685
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 0.3586361129195602
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 0.5185421187789352
+
+--------------------------------------------------

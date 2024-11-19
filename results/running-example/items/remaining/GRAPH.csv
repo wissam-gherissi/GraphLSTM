@@ -1,0 +1,30 @@
+Results for threshold: 0
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 6.026032986111111
+
+--------------------------------------------------
+Results for threshold: 10
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 6.228284866898148
+
+--------------------------------------------------
+Results for threshold: 25
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 6.188801359953704
+
+--------------------------------------------------
+Results for threshold: 50
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 6.166022858796296
+
+--------------------------------------------------
+Results for threshold: 75
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 6.154555121527777
+
+--------------------------------------------------
+Results for threshold: 100
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 6.294547164351852
+
+--------------------------------------------------

@@ -1,0 +1,36 @@
+Results for threshold: 0
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.905982905982906
+  F1-score: 0.8633939659580685
+
+--------------------------------------------------
+Results for threshold: 10
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.905982905982906
+  F1-score: 0.8633939659580685
+
+--------------------------------------------------
+Results for threshold: 25
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.905982905982906
+  F1-score: 0.8633939659580685
+
+--------------------------------------------------
+Results for threshold: 50
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.905982905982906
+  F1-score: 0.8633939659580685
+
+--------------------------------------------------
+Results for threshold: 75
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.905982905982906
+  F1-score: 0.8633939659580685
+
+--------------------------------------------------
+Results for threshold: 100
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.905982905982906
+  F1-score: 0.8633939659580685
+
+--------------------------------------------------

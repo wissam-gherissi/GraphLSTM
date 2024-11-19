@@ -1,0 +1,54 @@
+Results for threshold: 0
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.8845401174168297
+  F1-score: 0.8334756683683043
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 0.38237657335069447
+
+--------------------------------------------------
+Results for threshold: 10
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.8845401174168297
+  F1-score: 0.8334756683683043
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 0.3799521213107639
+
+--------------------------------------------------
+Results for threshold: 25
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.8845401174168297
+  F1-score: 0.8334756683683043
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 0.33971919307002313
+
+--------------------------------------------------
+Results for threshold: 50
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.44031311154598823
+  F1-score: 0.27366591057214174
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 0.38328559027777775
+
+--------------------------------------------------
+Results for threshold: 75
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.8845401174168297
+  F1-score: 0.8334756683683043
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 0.3346690764250579
+
+--------------------------------------------------
+Results for threshold: 100
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.8767123287671232
+  F1-score: 0.8295834829027664
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 0.2983805338541667
+
+--------------------------------------------------

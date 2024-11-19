@@ -1,0 +1,12 @@
+Results for threshold: 0
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.7817234848484849
+  F1-score: 0.7370449342477172
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 1.28669677734375
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 6.197960792824074
+
+--------------------------------------------------

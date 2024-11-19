@@ -1,0 +1,72 @@
+Results for threshold: 0
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.92
+  F1-score: 0.8834782608695652
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 1.0418797019675925
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 1.2085932978877314
+
+--------------------------------------------------
+Results for threshold: 10
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.92
+  F1-score: 0.8834782608695652
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 1.060310691550926
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 1.1921180555555555
+
+--------------------------------------------------
+Results for threshold: 25
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.92
+  F1-score: 0.8834782608695652
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 1.041362575954861
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 1.2085217737268519
+
+--------------------------------------------------
+Results for threshold: 50
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.92
+  F1-score: 0.8834782608695652
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 1.0585560438368056
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 1.2232884837962963
+
+--------------------------------------------------
+Results for threshold: 75
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.92
+  F1-score: 0.8834782608695652
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 1.0654792390046297
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 1.2151357241030092
+
+--------------------------------------------------
+Results for threshold: 100
+Classification Metrics (Next Activity Prediction):
+  Accuracy: 0.92
+  F1-score: 0.8834782608695652
+
+Regression Metrics (Event Time Prediction):
+  MAE Time: 1.0543646918402778
+
+Regression Metrics (Remaining Time Prediction):
+  MAE TimeR: 1.2154229058159722
+
+--------------------------------------------------
